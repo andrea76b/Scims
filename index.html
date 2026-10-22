@@ -1058,7 +1058,9 @@ function mettiDaParteStorico(){ const r=localStorage.getItem("scims_storico"); i
 /* N15 del 01/10 (chiuso l'11/10/2026): si tiene il nome dell'ultimo errore di scrittura, per distinguere l'archivio PIENO (il browser
    non ha più spazio: QuotaExceededError, o NS_ERROR_DOM_QUOTA_REACHED nei Firefox vecchi) dall'archivio che non c'è. */
 let ERRORE_ARCHIVIO="";
-function scriviArchivio(a){ ERRORE_ARCHIVIO=""; if(!ARCHIVIO_OK) return false; try{ if(STORICO_GUASTO) mettiDaParteStorico(); localStorage.setItem("scims_storico",JSON.stringify(a)); STORICO_GUASTO=""; if(typeof liberaAvvisoFisso==="function") liberaAvvisoFisso(); return true; }catch(e){ ERRORE_ARCHIVIO=String((e&&(e.name||e.code))||"errore"); return false; } }
+/* #153 (controllo Fable A a lotto del 18/10; corretto il 22/10): prima di scrivere si RILEGGE lo storico (leggiArchivio aggiorna
+   STORICO_GUASTO), così uno storico guastato dopo il disegno della scheda Storico si mette da parte anche premendo «Svuota lo storico». */
+function scriviArchivio(a){ ERRORE_ARCHIVIO=""; if(!ARCHIVIO_OK) return false; try{ leggiArchivio(); if(STORICO_GUASTO) mettiDaParteStorico(); localStorage.setItem("scims_storico",JSON.stringify(a)); STORICO_GUASTO=""; if(typeof liberaAvvisoFisso==="function") liberaAvvisoFisso(); return true; }catch(e){ ERRORE_ARCHIVIO=String((e&&(e.name||e.code))||"errore"); return false; } }
 function archivioPieno(){ return /quota/i.test(ERRORE_ARCHIVIO); }
 /* F1 del 15/10/2026 (controllo finale Fable, MEDIO; corretto il 17/10, Andrea: «Correggi subito i due difetti»). Prima: catch(e){} muto,
    e chi compilava per un'ora ad archivio pieno chiudeva senza sapere che la bozza era ferma. Ora si tiene il nome dell'errore e lo si
@@ -2661,7 +2663,11 @@ function scaricaReferto(txt){
    disegno, e l'avviso fisso dell'archivio pieno spariva al primo ridisegno. Ora testo e flag si tengono anche fuori dal nodo
    (TESTO_AVVISO_FISSO, impostati anche se #avviso non c'è) e vReferto li rimette; liberaAvvisoFisso svuota anche il testo. */
 let TIMER_AVVISO=null, AVVISO_FISSO=false, TESTO_AVVISO_FISSO="";
-function avvisa(t,fisso){ clearTimeout(TIMER_AVVISO); AVVISO_FISSO=!!fisso; TESTO_AVVISO_FISSO=fisso?String(t):""; const a=document.getElementById("avviso"); if(a){a.textContent=t; if(!fisso) TIMER_AVVISO=setTimeout(()=>{if(a)a.textContent="";},4000);} }
+/* #154 (controllo Fable A a lotto del 18/10; corretto il 22/10): un avviso passeggero («Referto copiato…») spegneva l'avviso fisso
+   dell'archivio pieno, che spariva come in F2 per un'altra via. Ora il passeggero si mostra per 4 secondi e poi torna il fisso; il fisso
+   si spegne solo alla prima scrittura riuscita (liberaAvvisoFisso) o lo sostituisce un altro avviso fisso. Fino al 22/10 valeva la regola
+   dell'11/10 scritta qui sopra: «L'avviso fisso si spegne al primo avviso nuovo o alla prima scrittura riuscita». */
+function avvisa(t,fisso){ clearTimeout(TIMER_AVVISO); if(fisso){ AVVISO_FISSO=true; TESTO_AVVISO_FISSO=String(t); } const a=document.getElementById("avviso"); if(a){a.textContent=t; if(!fisso) TIMER_AVVISO=setTimeout(()=>{ const b=document.getElementById("avviso"); if(b) b.textContent=AVVISO_FISSO?TESTO_AVVISO_FISSO:""; },4000);} }
 function liberaAvvisoFisso(){ if(!AVVISO_FISSO) return; const a=document.getElementById("avviso"); if(a) a.textContent=""; AVVISO_FISSO=false; TESTO_AVVISO_FISSO=""; }
 
 /* ---------- STORICO ---------- */
